@@ -1,0 +1,29 @@
+[project]
+name = "llm-fragments-us-legislation"
+version = "0.1"
+description = "Load bills from Congress.gov as LLM fragments"
+readme = "README.md"
+authors = [{name = "Kevin Schaul"}]
+license = "Apache-2.0"
+classifiers = []
+requires-python = ">=3.9"
+dependencies = [
+    "llm",
+    "httpx",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/kevinschaul/llm-fragments-us-legislation"
+Changelog = "https://github.com/kevinschaul/llm-fragments-us-legislation/releases"
+Issues = "https://github.com/kevinschaul/llm-fragments-us-legislation/issues"
+CI = "https://github.com/kevinschaul/llm-fragments-us-legislation/actions"
+
+[project.entry-points.llm]
+llm_fragments_us_legislation = "llm_fragments_us_legislation"
+
+[project.optional-dependencies]
+test = ["pytest", "respx>=0.22.0"]
