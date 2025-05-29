@@ -15,19 +15,38 @@ def test_plugin_is_installed():
 
 
 @pytest.mark.parametrize(
-    "input_arg,expected_bill_type,expected_bill_number,expected_congress",
+    "input_arg,expected_bill_type,expected_bill_number,expected_congress,expected_mode,expected_section",
     [
-        ("hr1-119", "hr", "1", "119"),
-        ("s5-118", "s", "5", "118"),
+        ("hr1-119", "hr", "1", "119", "full", None),
+        ("s5-118", "s", "5", "118", "full", None),
+        ("hr1-119:toc", "hr", "1", "119", "toc", None),
+        ("hr1-119:section-1", "hr", "1", "119", "section", ["1"]),
+        ("hr1-119:section-1,3,5", "hr", "1", "119", "section", ["1", "3", "5"]),
+        ("s5-118:section-42", "s", "5", "118", "section", ["42"]),
+        (
+            "hr100-117:section-1,2,3,4",
+            "hr",
+            "100",
+            "117",
+            "section",
+            ["1", "2", "3", "4"],
+        ),
     ],
 )
 def test_parse_argument(
-    input_arg, expected_bill_type, expected_bill_number, expected_congress
+    input_arg,
+    expected_bill_type,
+    expected_bill_number,
+    expected_congress,
+    expected_mode,
+    expected_section,
 ):
     actual = parse_argument(input_arg)
     assert actual["bill_type"] == expected_bill_type
     assert actual["bill_number"] == expected_bill_number
     assert actual["congress"] == expected_congress
+    assert actual["mode"] == expected_mode
+    assert actual["section"] == expected_section
 
 
 @pytest.mark.parametrize(
@@ -38,7 +57,11 @@ def test_parse_argument(
         "1-119",
         "hr-119",
         "hr1-",
+        "h1-119",
         "",
+        "hr-119:",
+        "hr-119:invalid",
+        "hr-119:section-",
     ],
 )
 def test_parse_argument_invalid(invalid_input):
@@ -58,14 +81,12 @@ def test_bill_loader_success():
                 "textVersions": [
                     {
                         "date": "2020-05-01",
-                        "formats": [
-                            {"type": "Old version formatted Text", "url": "old url"}
-                        ],
+                        "formats": [{"type": "Formatted XML", "url": "old url"}],
                     },
                     {
                         "date": "2024-05-01",
                         "formats": [
-                            {"type": "Formatted Text", "url": formatted_text_url}
+                            {"type": "Formatted XML", "url": formatted_text_url}
                         ],
                     },
                 ]
