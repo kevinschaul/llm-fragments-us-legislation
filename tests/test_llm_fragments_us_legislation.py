@@ -1,9 +1,11 @@
+import textwrap
 import pytest
 import httpx
 import respx
+from pathlib import Path
 from llm.plugins import load_plugins, pm
 
-from llm_fragments_us_legislation import bill_loader, parse_argument
+from llm_fragments_us_legislation import bill_loader, parse_argument, parse_xml_toc
 
 
 def test_plugin_is_installed():
@@ -88,3 +90,18 @@ def test_bill_loader_no_text_versions():
 
     with pytest.raises(ValueError, match="No text available for bill hr1-119"):
         bill_loader("hr1-119")
+
+
+class TestParseXML:
+    @pytest.fixture
+    def hr1968_119_text(self):
+        with open(Path(__file__).parent / "fixtures/hr1968-119_text.xml") as f:
+            return "\n".join(f.readlines())
+
+    def test_parse_xml_toc(self, hr1968_119_text):
+        actual = parse_xml_toc(hr1968_119_text)
+        assert actual[0] == {
+            "designator": "Sec. 1.",
+            "label": "Short title.",
+            "role": "section",
+        }
