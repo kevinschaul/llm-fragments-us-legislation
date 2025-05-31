@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-8.3.5, pluggy-1.6.0 -- /workspaces/llm-fragments-us-legislation/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspaces/llm-fragments-us-legislation
+configfile: pyproject.toml
+plugins: respx-0.22.0, anyio-4.9.0
+collecting ... collected 30 items
+
+tests/test_llm_fragments_us_legislation.py::test_plugin_is_installed PASSED [  3%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[hr1-119-hr-1-119-full-None] PASSED [  6%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[s5-118-s-5-118-full-None] PASSED [ 10%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[hr1-119:toc-hr-1-119-toc-None] PASSED [ 13%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[hr1-119:section-1-hr-1-119-section-expected_section3] PASSED [ 16%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[hr1-119:section-1,3,5-hr-1-119-section-expected_section4] PASSED [ 20%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[s5-118:section-42-s-5-118-section-expected_section5] PASSED [ 23%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument[hr100-117:section-1,2,3,4-hr-100-117-section-expected_section6] PASSED [ 26%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr] PASSED [ 30%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr1] PASSED [ 33%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[1-119] PASSED [ 36%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr-119] PASSED [ 40%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr1-] PASSED [ 43%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[h1-119] PASSED [ 46%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[] PASSED [ 50%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr-119:] PASSED [ 53%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr-119:invalid] PASSED [ 56%]
+tests/test_llm_fragments_us_legislation.py::test_parse_argument_invalid[hr-119:section-] PASSED [ 60%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_success PASSED [ 63%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_no_text_versions PASSED [ 66%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_no_xml_format PASSED [ 70%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_toc_mode PASSED [ 73%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_section_mode PASSED [ 76%]
+tests/test_llm_fragments_us_legislation.py::TestParseXML::test_parse_xml_toc_hr1_119 PASSED [ 80%]
+tests/test_llm_fragments_us_legislation.py::TestParseXML::test_parse_xml_toc PASSED [ 83%]
+tests/test_llm_fragments_us_legislation.py::TestParseXML::test_parse_xml_toc_empty PASSED [ 86%]
+tests/test_llm_fragments_us_legislation.py::TestParseXML::test_parse_xml_toc_with_missing_elements PASSED [ 90%]
+tests/test_llm_fragments_us_legislation.py::TestParseXML::test_parse_xml_section_3105 PASSED [ 93%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_api_error PASSED [ 96%]
+tests/test_llm_fragments_us_legislation.py::test_bill_loader_text_fetch_error PASSED [100%]
+
+============================== 30 passed in 0.66s ==============================

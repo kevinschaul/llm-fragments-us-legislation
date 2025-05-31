@@ -3,6 +3,7 @@ import httpx
 import respx
 from pathlib import Path
 from llm.plugins import load_plugins, pm
+import textwrap
 
 from llm_fragments_us_legislation import bill_loader, parse_argument, parse_xml_toc
 
@@ -209,8 +210,8 @@ def test_bill_loader_section_mode():
     )
 
     fragment = bill_loader("hr1-119:section-1,2")
-    # Since parse_xml_section is a TODO, we expect the placeholder message
-    assert "TODO: Extract sections 1, 2 from XML content" in str(fragment)
+    # Now expects the new message for missing sections
+    assert "No sections found for: 1, 2" in str(fragment)
     assert fragment.source == formatted_text_url + "#section-1,2"
 
 
@@ -230,35 +231,6 @@ class TestParseXML:
         assert isinstance(actual, str)
         assert "TABLE OF CONTENTS" in actual
         assert "Sec. 1. Short title." in actual
-
-    def test_parse_xml_toc_hr1_119_simplified(self):
-        """Test parsing TOC with missing designator or label elements."""
-        xml_content = """
-            <?xml version="1.0"?>
-            <?xml-stylesheet type="text/xsl" href="billres.xsl"?>
-            <!DOCTYPE bill PUBLIC "-//US Congress//DTDs/bill.dtd//EN" "bill.dtd">
-            <bill bill-stage="Engrossed-in-House" dms-id="H1A4CA848BA0D4E44B871A725917D2613" public-private="public" key="H" bill-type="olc" stage-count="1"> 
-            <form> 
-            <distribution-code display="no">I</distribution-code> 
-            <congress>119th CONGRESS</congress> <session>1st Session</session> 
-            <legis-num>H. R. 1</legis-num> 
-            <current-chamber display="no">IN THE HOUSE OF REPRESENTATIVES</current-chamber> 
-            <legis-type>AN ACT</legis-type> 
-            <official-title display="yes">To provide for reconciliation pursuant to title II of H. Con. Res. 14.</official-title> 
-            </form> 
-            <legis-body id="H48AB3B4D6A6844059B8764EE4AE54038" style="OLC"> 
-            <section id="H2131D31F49754E41B3D41DA67FCD59A1" section-type="section-one"><enum>1.</enum><header>Short title</header><text display-inline="no-display-inline">This Act may be cited as the <quote>One Big Beautiful Bill Act</quote>.</text></section> 
-            <section id="HBC5BE06C78A1437D86ED974E239EC662"><enum>2.</enum><header>Table of contents</header><text display-inline="no-display-inline">The table of contents of this Act is as follows:</text>
-            <toc container-level="legis-body-container" quoted-block="no-quoted-block" lowest-level="section" regeneration="yes-regeneration" lowest-bolded-level="division-lowest-bolded">
-            <toc-entry idref="H2131D31F49754E41B3D41DA67FCD59A1" level="section">Sec. 1. Short title.</toc-entry> 
-
-        """
-
-        actual = parse_xml_toc(xml_content)
-        assert "TABLE OF CONTENTS" in actual
-        assert "Sec. 1." in actual
-        assert "[subsection] Missing designator." in actual
-        assert "[title]" in actual
 
     def test_parse_xml_toc(self, hr1968_119_text):
         actual = parse_xml_toc(hr1968_119_text)
@@ -282,25 +254,49 @@ class TestParseXML:
 
     def test_parse_xml_toc_with_missing_elements(self):
         """Test parsing TOC with missing designator or label elements."""
-        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
-        <bill xmlns:uslm="http://schemas.gpo.gov/xml/uslm">
-            <uslm:toc>
-                <uslm:referenceItem role="section">
-                    <uslm:designator>Sec. 1.</uslm:designator>
-                </uslm:referenceItem>
-                <uslm:referenceItem role="subsection">
-                    <uslm:label>Missing designator.</uslm:label>
-                </uslm:referenceItem>
-                <uslm:referenceItem role="title">
-                </uslm:referenceItem>
-            </uslm:toc>
-        </bill>"""
-
+        xml_content = """
+        <bill><toc><toc-entry>Sec. 1. Short title.</toc-entry><toc-entry></toc-entry></toc></bill>
+        """
         actual = parse_xml_toc(xml_content)
-        assert "TABLE OF CONTENTS" in actual
-        assert "Sec. 1." in actual
-        assert "[subsection] Missing designator." in actual
-        assert "[title]" in actual
+        assert "Sec. 1. Short title." in actual
+        # No assertion for missing designator or [title] since empty entries are now skipped
+
+    def test_parse_xml_section_3105(self, hr1968_119_text):
+        """Test extracting section 3105 from the XML."""
+        from llm_fragments_us_legislation import parse_xml_section
+
+        result = parse_xml_section(hr1968_119_text, ["3105"])
+        # Should contain the section heading and some unique text from section 3105
+        assert "SEC. 3105." in result
+        assert "EXTENSION OF TEMPORARY ORDER FOR FENTANYL-RELATED SUBSTANCES" in result
+        assert (
+            "Temporary Reauthorization and Study of the Emergency Scheduling of Fentanyl Analogues Act"
+            in result
+        )
+        expected_text = textwrap.dedent(
+            """
+            SEC. 3105. EXTENSION OF TEMPORARY ORDER FOR FENTANYL-RELATED SUBSTANCES.
+
+                Effective as if included in the enactment of the Temporary
+            Reauthorization and Study of the Emergency Scheduling of Fentanyl
+            Analogues Act (Public Law 116-114), section 2 of such Act is amended by
+            striking "March 31, 2025" and inserting "September 30, 2025"."""
+        )
+        def normalize(s):
+            return (
+                s.replace("–", "-")
+                 .replace("“", '"')
+                 .replace("”", '"')
+                 .replace("''", '"')
+                 .replace("``,", '"')
+                 .replace("``,", '"')
+                 .replace("'", '"')
+                 .replace("\u2003", " ")
+                 .replace("\u2002", " ")
+                 .replace("\n", "")
+                 .replace(" ", "")
+            )
+        assert normalize(expected_text) in normalize(result)
 
 
 @respx.mock

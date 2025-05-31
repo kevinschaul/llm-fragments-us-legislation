@@ -193,7 +193,10 @@ def parse_xml_toc(xml_content: str) -> str:
         Formatted string containing the table of contents
     """
     root = ET.fromstring(xml_content)
+    # Try namespaced toc first, then fallback to non-namespaced toc
     toc_element = root.find(".//uslm:toc", XML_NAMESPACE)
+    if toc_element is None:
+        toc_element = root.find(".//toc")
     if toc_element is None:
         raise ValueError(
             "No table of contents found in this bill."
@@ -201,59 +204,81 @@ def parse_xml_toc(xml_content: str) -> str:
 
     toc_lines = ["TABLE OF CONTENTS", "=" * 18, ""]
 
-    # Find referenceItems within the toc_element, also using the namespace
+    # Try namespaced referenceItem, then fallback to non-namespaced toc-entry
     reference_items = toc_element.findall("uslm:referenceItem", XML_NAMESPACE)
+    if not reference_items:
+        reference_items = toc_element.findall("toc-entry")
     if not reference_items:
         return "Table of contents is empty."
 
     for item in reference_items:
-        role = clean_text(item.get("role", ""))
-
-        designator_element = item.find("uslm:designator", XML_NAMESPACE)
+        # Try to extract designator and label, fallback to text content
+        designator_element = item.find("uslm:designator", XML_NAMESPACE) if item.tag.endswith('referenceItem') else None
         designator_text = (
             clean_text(designator_element.text)
             if designator_element is not None and designator_element.text
             else ""
         )
-
-        label_element = item.find("uslm:label", XML_NAMESPACE)
+        label_element = item.find("uslm:label", XML_NAMESPACE) if item.tag.endswith('referenceItem') else None
         label_text = (
             clean_text(label_element.text)
             if label_element is not None and label_element.text
             else ""
         )
-
-        # Format the TOC entry
-        if designator_text and label_text:
+        # For non-namespaced toc-entry, just use the text
+        if not designator_text and not label_text and item.text:
+            toc_lines.append(clean_text(item.text))
+        elif designator_text and label_text:
             toc_lines.append(f"{designator_text} {label_text}")
         elif designator_text:
             toc_lines.append(designator_text)
         elif label_text:
-            # Displaying role if label_text exists but designator_text doesn't might be too verbose
-            # toc_lines.append(f"{label_text}") # Simplified: just label if no designator
-            toc_lines.append(f"[{role}] {label_text}")
-        else:  # No designator and no label, probably skip or log
-            toc_lines.append(f"[{role}]")
+            toc_lines.append(label_text)
 
     return "\n".join(toc_lines)
 
 
-def parse_xml_section(xml_content: str, sections: List[str]) -> str:
+def parse_xml_section(xml_content: str, sections: list[str]) -> str:
     """
-    Parse specific sections from bill XML.
-
-    Args:
-        xml_content: String containing the USLM XML data
-        sections: List of section numbers to extract
-
-    Returns:
-        Extracted section content as string
-
-    Note:
-        This function is currently a placeholder and needs implementation.
+    Parse specific sections from bill XML and return plain text.
     """
-    # TODO: Implement section parsing logic
-    return f"TODO: Extract sections {', '.join(sections)} from XML content"
+    root = ET.fromstring(xml_content)
+    found = []
+    # Accept both namespaced and non-namespaced tags by checking tag localname
+    def localname(tag):
+        return tag.split('}')[-1] if '}' in tag else tag
+
+    for section_num in sections:
+        for section in root.iter():
+            if localname(section.tag) != "section":
+                continue
+            # Find <num>, <heading>, <content> children regardless of namespace
+            num_el = None
+            heading = None
+            content = None
+            for child in section:
+                lname = localname(child.tag)
+                if lname == "num":
+                    num_el = child
+                elif lname == "heading":
+                    heading = child
+                elif lname == "content":
+                    content = child
+            if num_el is not None and (
+                num_el.get("value", "") == section_num or section_num in (num_el.text or "")
+            ):
+                text = ""
+                if num_el.text:
+                    text += num_el.text.strip()
+                if heading is not None and heading.text:
+                    text += " " + heading.text.strip()
+                if content is not None:
+                    content_text = ET.tostring(content, encoding="unicode", method="text")
+                    text += "\n\n" + re.sub(r"\s+", " ", content_text).strip()
+                found.append(text.strip())
+    if not found:
+        return f"No sections found for: {', '.join(sections)}"
+    return "\n\n".join(found)
 
 
 def bill_loader(argument: str) -> llm.Fragment:
