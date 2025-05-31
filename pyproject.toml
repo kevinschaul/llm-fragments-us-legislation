@@ -10,11 +10,15 @@ requires-python = ">=3.9"
 dependencies = [
     "llm",
     "httpx",
+    "congressxml",
 ]
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv.sources]
+congressxml = { git = "https://github.com/govtrack/congressxml" }
 
 [project.urls]
 Homepage = "https://github.com/kevinschaul/llm-fragments-us-legislation"

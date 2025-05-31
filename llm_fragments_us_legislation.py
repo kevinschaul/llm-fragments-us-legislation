@@ -130,7 +130,7 @@ def clean_text(text: str) -> str:
     return text.replace("\u2002", " ").strip()
 
 
-def parse_xml_toc(xml_content: str) -> str:
+def parse_xml_toc2(xml_content: str) -> str:
     """
     Parse the table of contents from bill XML and return as formatted string.
 
@@ -177,6 +177,62 @@ def parse_xml_toc(xml_content: str) -> str:
         elif label_text:
             toc_lines.append(f"[{role}] {label_text}")
         else:
+            toc_lines.append(f"[{role}]")
+
+    return "\n".join(toc_lines)
+
+
+def parse_xml_toc(xml_content: str) -> str:
+    """
+    Parse the table of contents from bill XML and return as formatted string.
+
+    Args:
+        xml_content: String containing the USLM XML data
+
+    Returns:
+        Formatted string containing the table of contents
+    """
+    root = ET.fromstring(xml_content)
+    toc_element = root.find(".//uslm:toc", XML_NAMESPACE)
+    if toc_element is None:
+        raise ValueError(
+            "No table of contents found in this bill."
+        )
+
+    toc_lines = ["TABLE OF CONTENTS", "=" * 18, ""]
+
+    # Find referenceItems within the toc_element, also using the namespace
+    reference_items = toc_element.findall("uslm:referenceItem", XML_NAMESPACE)
+    if not reference_items:
+        return "Table of contents is empty."
+
+    for item in reference_items:
+        role = clean_text(item.get("role", ""))
+
+        designator_element = item.find("uslm:designator", XML_NAMESPACE)
+        designator_text = (
+            clean_text(designator_element.text)
+            if designator_element is not None and designator_element.text
+            else ""
+        )
+
+        label_element = item.find("uslm:label", XML_NAMESPACE)
+        label_text = (
+            clean_text(label_element.text)
+            if label_element is not None and label_element.text
+            else ""
+        )
+
+        # Format the TOC entry
+        if designator_text and label_text:
+            toc_lines.append(f"{designator_text} {label_text}")
+        elif designator_text:
+            toc_lines.append(designator_text)
+        elif label_text:
+            # Displaying role if label_text exists but designator_text doesn't might be too verbose
+            # toc_lines.append(f"{label_text}") # Simplified: just label if no designator
+            toc_lines.append(f"[{role}] {label_text}")
+        else:  # No designator and no label, probably skip or log
             toc_lines.append(f"[{role}]")
 
     return "\n".join(toc_lines)
@@ -268,7 +324,7 @@ def _find_latest_xml_url(text_versions: List[dict]) -> Optional[str]:
     """Find XML format URL from the most recent text version."""
     # Sort versions by date (most recent first)
     sorted_versions = sorted(
-        text_versions, key=lambda x: x.get("date", ""), reverse=True
+        text_versions, key=lambda x: x.get("date") or "", reverse=True
     )
 
     # Find XML format in most recent versions

@@ -216,9 +216,49 @@ def test_bill_loader_section_mode():
 
 class TestParseXML:
     @pytest.fixture
+    def hr1_119_text(self):
+        with open(Path(__file__).parent / "fixtures/hr1-119_text.xml") as f:
+            return "\n".join(f.readlines())
+
+    @pytest.fixture
     def hr1968_119_text(self):
         with open(Path(__file__).parent / "fixtures/hr1968-119_text.xml") as f:
             return "\n".join(f.readlines())
+
+    def test_parse_xml_toc_hr1_119(self, hr1_119_text):
+        actual = parse_xml_toc(hr1_119_text)
+        assert isinstance(actual, str)
+        assert "TABLE OF CONTENTS" in actual
+        assert "Sec. 1. Short title." in actual
+
+    def test_parse_xml_toc_hr1_119_simplified(self):
+        """Test parsing TOC with missing designator or label elements."""
+        xml_content = """
+            <?xml version="1.0"?>
+            <?xml-stylesheet type="text/xsl" href="billres.xsl"?>
+            <!DOCTYPE bill PUBLIC "-//US Congress//DTDs/bill.dtd//EN" "bill.dtd">
+            <bill bill-stage="Engrossed-in-House" dms-id="H1A4CA848BA0D4E44B871A725917D2613" public-private="public" key="H" bill-type="olc" stage-count="1"> 
+            <form> 
+            <distribution-code display="no">I</distribution-code> 
+            <congress>119th CONGRESS</congress> <session>1st Session</session> 
+            <legis-num>H. R. 1</legis-num> 
+            <current-chamber display="no">IN THE HOUSE OF REPRESENTATIVES</current-chamber> 
+            <legis-type>AN ACT</legis-type> 
+            <official-title display="yes">To provide for reconciliation pursuant to title II of H. Con. Res. 14.</official-title> 
+            </form> 
+            <legis-body id="H48AB3B4D6A6844059B8764EE4AE54038" style="OLC"> 
+            <section id="H2131D31F49754E41B3D41DA67FCD59A1" section-type="section-one"><enum>1.</enum><header>Short title</header><text display-inline="no-display-inline">This Act may be cited as the <quote>One Big Beautiful Bill Act</quote>.</text></section> 
+            <section id="HBC5BE06C78A1437D86ED974E239EC662"><enum>2.</enum><header>Table of contents</header><text display-inline="no-display-inline">The table of contents of this Act is as follows:</text>
+            <toc container-level="legis-body-container" quoted-block="no-quoted-block" lowest-level="section" regeneration="yes-regeneration" lowest-bolded-level="division-lowest-bolded">
+            <toc-entry idref="H2131D31F49754E41B3D41DA67FCD59A1" level="section">Sec. 1. Short title.</toc-entry> 
+
+        """
+
+        actual = parse_xml_toc(xml_content)
+        assert "TABLE OF CONTENTS" in actual
+        assert "Sec. 1." in actual
+        assert "[subsection] Missing designator." in actual
+        assert "[title]" in actual
 
     def test_parse_xml_toc(self, hr1968_119_text):
         actual = parse_xml_toc(hr1968_119_text)
@@ -235,7 +275,9 @@ class TestParseXML:
             </body>
         </bill>"""
 
-        with pytest.raises(ValueError, match="No table of contents found in this bill."):
+        with pytest.raises(
+            ValueError, match="No table of contents found in this bill."
+        ):
             parse_xml_toc(xml_content)
 
     def test_parse_xml_toc_with_missing_elements(self):
