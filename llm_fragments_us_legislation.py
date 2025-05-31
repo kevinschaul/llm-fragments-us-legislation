@@ -198,9 +198,7 @@ def parse_xml_toc(xml_content: str) -> str:
     if toc_element is None:
         toc_element = root.find(".//toc")
     if toc_element is None:
-        raise ValueError(
-            "No table of contents found in this bill."
-        )
+        raise ValueError("No table of contents found in this bill.")
 
     toc_lines = ["TABLE OF CONTENTS", "=" * 18, ""]
 
@@ -213,13 +211,21 @@ def parse_xml_toc(xml_content: str) -> str:
 
     for item in reference_items:
         # Try to extract designator and label, fallback to text content
-        designator_element = item.find("uslm:designator", XML_NAMESPACE) if item.tag.endswith('referenceItem') else None
+        designator_element = (
+            item.find("uslm:designator", XML_NAMESPACE)
+            if item.tag.endswith("referenceItem")
+            else None
+        )
         designator_text = (
             clean_text(designator_element.text)
             if designator_element is not None and designator_element.text
             else ""
         )
-        label_element = item.find("uslm:label", XML_NAMESPACE) if item.tag.endswith('referenceItem') else None
+        label_element = (
+            item.find("uslm:label", XML_NAMESPACE)
+            if item.tag.endswith("referenceItem")
+            else None
+        )
         label_text = (
             clean_text(label_element.text)
             if label_element is not None and label_element.text
@@ -244,9 +250,10 @@ def parse_xml_section(xml_content: str, sections: list[str]) -> str:
     """
     root = ET.fromstring(xml_content)
     found = []
+
     # Accept both namespaced and non-namespaced tags by checking tag localname
     def localname(tag):
-        return tag.split('}')[-1] if '}' in tag else tag
+        return tag.split("}")[-1] if "}" in tag else tag
 
     for section_num in sections:
         for section in root.iter():
@@ -265,7 +272,8 @@ def parse_xml_section(xml_content: str, sections: list[str]) -> str:
                 elif lname == "content":
                     content = child
             if num_el is not None and (
-                num_el.get("value", "") == section_num or section_num in (num_el.text or "")
+                num_el.get("value", "") == section_num
+                or section_num in (num_el.text or "")
             ):
                 text = ""
                 if num_el.text:
@@ -273,11 +281,13 @@ def parse_xml_section(xml_content: str, sections: list[str]) -> str:
                 if heading is not None and heading.text:
                     text += " " + heading.text.strip()
                 if content is not None:
-                    content_text = ET.tostring(content, encoding="unicode", method="text")
+                    content_text = ET.tostring(
+                        content, encoding="unicode", method="text"
+                    )
                     text += "\n\n" + re.sub(r"\s+", " ", content_text).strip()
                 found.append(text.strip())
-    if not found:
-        return f"No sections found for: {', '.join(sections)}"
+    if len(found) < len(sections):
+        raise ValueError(f"Not all sections found: {', '.join(sections)}")
     return "\n\n".join(found)
 
 
