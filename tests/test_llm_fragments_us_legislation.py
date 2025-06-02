@@ -5,7 +5,28 @@ from pathlib import Path
 from llm.plugins import load_plugins, pm
 import textwrap
 
-from llm_fragments_us_legislation import bill_loader, parse_argument, parse_xml_toc
+from llm_fragments_us_legislation import (
+    bill_loader,
+    parse_argument,
+    parse_xml_toc,
+    parse_xml_section,
+)
+
+
+def normalize_string(s):
+    return (
+        s.replace("–", "-")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("''", '"')
+        .replace("``,", '"')
+        .replace("``,", '"')
+        .replace("'", '"')
+        .replace("\u2003", " ")
+        .replace("\u2002", " ")
+        .replace("\n", "")
+        .replace(" ", "")
+    )
 
 
 def test_plugin_is_installed():
@@ -209,10 +230,8 @@ def test_bill_loader_section_mode():
         return_value=httpx.Response(200, text=xml_content)
     )
 
-    fragment = bill_loader("hr1-119:section-1,2")
-    # Now expects the new message for missing sections
-    assert "No sections found for: 1, 2" in str(fragment)
-    assert fragment.source == formatted_text_url + "#section-1,2"
+    with pytest.raises(ValueError, match="Not all sections found"):
+        bill_loader("hr1-119:section-1,2")
 
 
 class TestParseXML:
@@ -239,7 +258,6 @@ class TestParseXML:
         assert "Sec. 1. Short title." in actual
 
     def test_parse_xml_toc_empty(self):
-        """Test parsing XML without a table of contents."""
         xml_content = """<?xml version="1.0" encoding="UTF-8"?>
         <bill xmlns:uslm="http://schemas.gpo.gov/xml/uslm">
             <body>
@@ -253,26 +271,15 @@ class TestParseXML:
             parse_xml_toc(xml_content)
 
     def test_parse_xml_toc_with_missing_elements(self):
-        """Test parsing TOC with missing designator or label elements."""
         xml_content = """
         <bill><toc><toc-entry>Sec. 1. Short title.</toc-entry><toc-entry></toc-entry></toc></bill>
         """
         actual = parse_xml_toc(xml_content)
         assert "Sec. 1. Short title." in actual
-        # No assertion for missing designator or [title] since empty entries are now skipped
 
-    def test_parse_xml_section_3105(self, hr1968_119_text):
-        """Test extracting section 3105 from the XML."""
-        from llm_fragments_us_legislation import parse_xml_section
-
+    def test_parse_xml_section_hr1968_3105(self, hr1968_119_text):
         result = parse_xml_section(hr1968_119_text, ["3105"])
-        # Should contain the section heading and some unique text from section 3105
-        assert "SEC. 3105." in result
         assert "EXTENSION OF TEMPORARY ORDER FOR FENTANYL-RELATED SUBSTANCES" in result
-        assert (
-            "Temporary Reauthorization and Study of the Emergency Scheduling of Fentanyl Analogues Act"
-            in result
-        )
         expected_text = textwrap.dedent(
             """
             SEC. 3105. EXTENSION OF TEMPORARY ORDER FOR FENTANYL-RELATED SUBSTANCES.
@@ -282,26 +289,15 @@ class TestParseXML:
             Analogues Act (Public Law 116-114), section 2 of such Act is amended by
             striking "March 31, 2025" and inserting "September 30, 2025"."""
         )
-        def normalize(s):
-            return (
-                s.replace("–", "-")
-                 .replace("“", '"')
-                 .replace("”", '"')
-                 .replace("''", '"')
-                 .replace("``,", '"')
-                 .replace("``,", '"')
-                 .replace("'", '"')
-                 .replace("\u2003", " ")
-                 .replace("\u2002", " ")
-                 .replace("\n", "")
-                 .replace(" ", "")
-            )
-        assert normalize(expected_text) in normalize(result)
+        assert normalize_string(expected_text) in normalize_string(result)
+
+    def test_parse_xml_section_hr1_110101(self, hr1_119_text):
+        result = parse_xml_section(hr1_119_text, ["110101"])
+        assert "No tax on tips" in result
 
 
 @respx.mock
 def test_bill_loader_api_error():
-    """Test handling of API errors."""
     api_url = "https://api.congress.gov/v3/bill/119/hr/1/text"
     respx.get(api_url).mock(return_value=httpx.Response(404))
 
@@ -311,7 +307,6 @@ def test_bill_loader_api_error():
 
 @respx.mock
 def test_bill_loader_text_fetch_error():
-    """Test handling of text fetch errors."""
     api_url = "https://api.congress.gov/v3/bill/119/hr/1/text"
     formatted_text_url = "https://some.text.url"
 

@@ -247,47 +247,51 @@ def parse_xml_toc(xml_content: str) -> str:
 def parse_xml_section(xml_content: str, sections: list[str]) -> str:
     """
     Parse specific sections from bill XML and return plain text.
+    Looks for <section> elements that start with "Sec. XXX", "Section XXX", or "XXX.".
     """
     root = ET.fromstring(xml_content)
     found = []
 
-    # Accept both namespaced and non-namespaced tags by checking tag localname
+    # Helper function to get tag name without namespace
     def localname(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
+    section_patterns = []
     for section_num in sections:
-        for section in root.iter():
-            if localname(section.tag) != "section":
-                continue
-            # Find <num>, <heading>, <content> children regardless of namespace
-            num_el = None
-            heading = None
-            content = None
-            for child in section:
-                lname = localname(child.tag)
-                if lname == "num":
-                    num_el = child
-                elif lname == "heading":
-                    heading = child
-                elif lname == "content":
-                    content = child
-            if num_el is not None and (
-                num_el.get("value", "") == section_num
-                or section_num in (num_el.text or "")
-            ):
-                text = ""
-                if num_el.text:
-                    text += num_el.text.strip()
-                if heading is not None and heading.text:
-                    text += " " + heading.text.strip()
-                if content is not None:
-                    content_text = ET.tostring(
-                        content, encoding="unicode", method="text"
-                    )
-                    text += "\n\n" + re.sub(r"\s+", " ", content_text).strip()
-                found.append(text.strip())
+        patterns = [
+            rf"^Sec\.\s+{re.escape(section_num)}\b",
+            rf"^Section\s+{re.escape(section_num)}\b",
+            rf"^{re.escape(section_num)}\.",
+        ]
+        section_patterns.append((section_num, patterns))
+
+    for element in root.iter():
+        if localname(element.tag) != "section":
+            continue
+
+        section_text = ET.tostring(element, encoding="unicode", method="text")
+        found_match = False
+        for section_num, patterns in section_patterns:
+            for pattern in patterns:
+                if re.search(pattern, section_text, re.IGNORECASE):
+                    found.append(section_text)
+                    found_match = True
+                    break
+            if found_match:
+                break
+
     if len(found) < len(sections):
-        raise ValueError(f"Not all sections found: {', '.join(sections)}")
+        found_section_nums = []
+        for text in found:
+            match = re.search(
+                r"^(?:Sec\.|Section)\s+(\S+)|^(\S+)\.", text, re.IGNORECASE
+            )
+            if match:
+                found_section_nums.append(match.group(1) or match.group(2))
+
+        missing = set(sections) - set(found_section_nums)
+        raise ValueError(f"Not all sections found. Missing: {', '.join(missing)}")
+
     return "\n\n".join(found)
 
 
